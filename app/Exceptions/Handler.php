@@ -2,8 +2,9 @@
 
 namespace App\Exceptions;
 
-use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
+use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 class Handler extends ExceptionHandler
 {
@@ -37,5 +38,20 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+    }
+
+    /**
+     * Custom render untuk throttle login.
+     */
+    public function render($request, Throwable $exception)
+    {
+        if ($exception instanceof TooManyRequestsHttpException) {
+            return response()->json([
+                'message' => 'Terlalu banyak percobaan login. Coba lagi nanti.',
+                'retry_after' => $exception->getHeaders()['Retry-After'] ?? 60
+            ], 429);
+        }
+
+        return parent::render($request, $exception);
     }
 }
