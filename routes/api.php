@@ -38,14 +38,16 @@ Route::middleware(['auth:sanctum', 'check.token.expiry'])->group(function () {
     // == BANK (AUTHORIZATION) ==
 
     // 1. Routes yang bisa diakses SEMUA ROLE (customer, admin, owner)
-    //    (Karena sudah di dalam 'auth:sanctum', user pasti sudah login)
     Route::get('/bank', [BankController::class, 'index']);
     Route::get('/bank/{kode_bank}', [BankController::class, 'show']);
 
 
     // 2. Routes yang HANYA bisa diakses oleh 'admin' dan 'owner'
     //    Kita tambahkan middleware ->middleware('role:admin,owner')
-    Route::post('/bank', [BankController::class, 'store']);
+    
+    // --- PERBAIKAN ADA DI SINI ---
+    Route::post('/bank', [BankController::class, 'store'])
+        ->middleware('role:admin,owner');  // <--- Tadi ini hilang!
 
     Route::put('/bank/{kode_bank}', [BankController::class, 'update'])
         ->middleware('role:admin,owner');
