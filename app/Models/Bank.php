@@ -9,16 +9,18 @@ class Bank extends Model
 {
     use HasFactory;
 
+    // Pastikan ini 'banks' sesuai nama tabel di phpMyAdmin
     protected $table = 'banks';
+    
     protected $primaryKey = 'kode_bank';
     public $incrementing = false;
     protected $keyType = 'string';
 
     protected $fillable = [
-        'kode_bank', 
-        'nama_bank', 
-        'alamat', 
-        'kota', 
+        'kode_bank',
+        'nama_bank',
+        'alamat',
+        'kota',
         'provinsi'
     ];
 

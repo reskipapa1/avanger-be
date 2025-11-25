@@ -11,17 +11,25 @@ use App\Http\Controllers\PeminjamanController;
 | Public Routes (Tidak perlu login)
 |--------------------------------------------------------------------------
 */
+
+// Auth Public
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:3,1');
 
+// Bank Public (Agar form Register bisa ambil list bank)
+Route::prefix('bank')->group(function () {
+    Route::get('/', [BankController::class, 'index']);
+    Route::get('/{kode_bank}', [BankController::class, 'show']);
+});
 
 /*
 |--------------------------------------------------------------------------
 | Protected Routes (WAJIB Login / Punya Token)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'check.token.expiry'])->group(function () {
+// ✅ REMOVE 'check.token.expiry' middleware
+Route::middleware(['auth:sanctum'])->group(function () {
 
     // == AUTHENTICATION ==
     Route::get('/user', function(Request $request) {
@@ -29,44 +37,32 @@ Route::middleware(['auth:sanctum', 'check.token.expiry'])->group(function () {
     });
     Route::post('/logout', [AuthController::class, 'logout']);
 
-
-    // == BANK ROUTES ==
+    // == BANK ROUTES (Write Only) ==
     Route::prefix('bank')->group(function () {
-        // Read operations - butuh ability bank:read
-        Route::get('/', [BankController::class, 'index'])
-            ->middleware(['abilities:bank:read']);
-        Route::get('/{kode_bank}', [BankController::class, 'show'])
-            ->middleware(['abilities:bank:read']);
-
-        // Write operations - butuh role admin/owner + abilities
         Route::post('/', [BankController::class, 'store'])
-            ->middleware(['role:owner', 'abilities:bank:create']);
+            ->middleware(['role:owner']);
         Route::put('/{kode_bank}', [BankController::class, 'update'])
-            ->middleware(['role:owner', 'abilities:bank:update']);
+            ->middleware(['role:owner']);
         Route::delete('/{kode_bank}', [BankController::class, 'destroy'])
-            ->middleware(['role:owner', 'abilities:bank:delete']);
+            ->middleware(['role:owner']);
     });
-
 
     // == PEMINJAMAN ROUTES ==
     Route::prefix('peminjaman')->group(function () {
-        // User: Lihat pinjaman sendiri & ajukan pinjaman
-        Route::get('/my', [PeminjamanController::class, 'myLoans'])
-            ->middleware(['abilities:peminjaman:read']);
-        Route::get('/{id}', [PeminjamanController::class, 'show'])
-            ->middleware(['abilities:peminjaman:read']);
-        Route::post('/', [PeminjamanController::class, 'store'])
-            ->middleware(['abilities:peminjaman:create']);
+        // Customer routes
+        Route::get('/my', [PeminjamanController::class, 'myLoans']);
+        Route::get('/{id}', [PeminjamanController::class, 'show']);
+        Route::post('/', [PeminjamanController::class, 'store']);
 
-        // Admin/Owner: Management semua pinjaman
+        // Admin routes
         Route::get('/', [PeminjamanController::class, 'index'])
-            ->middleware(['role:admin,owner', 'abilities:peminjaman:read']);
+            ->middleware(['role:admin,owner']);
         Route::put('/{id}/approve', [PeminjamanController::class, 'approve'])
-            ->middleware(['role:admin', 'abilities:peminjaman:approve']);
+            ->middleware(['role:admin']);
         Route::put('/{id}/reject', [PeminjamanController::class, 'reject'])
-            ->middleware(['role:admin', 'abilities:peminjaman:approve']);
+            ->middleware(['role:admin']);
         Route::put('/{id}/status', [PeminjamanController::class, 'updateStatus'])
-            ->middleware(['role:admin', 'abilities:peminjaman:update']);
+            ->middleware(['role:admin']);
     });
 
 });

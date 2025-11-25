@@ -14,8 +14,9 @@ class PeminjamanController extends Controller
         $loans = Peminjaman::where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->get();
-            
-        return response()->json($loans);
+        
+        // ✅ Wrap in 'data' key untuk konsistensi dengan frontend
+        return response()->json(['data' => $loans]);
     }
 
     // ADMIN/OWNER: Lihat SEMUA pinjaman
@@ -24,8 +25,9 @@ class PeminjamanController extends Controller
         $loans = Peminjaman::with('user')
             ->orderBy('created_at', 'desc')
             ->get();
-            
-        return response()->json($loans);
+        
+        // ✅ Wrap in 'data' key
+        return response()->json(['data' => $loans]);
     }
 
     // Detail pinjaman (user lihat punya sendiri, admin/owner lihat semua)
@@ -37,19 +39,21 @@ class PeminjamanController extends Controller
             return response()->json(['message' => 'Pinjaman tidak ditemukan'], 404);
         }
         
-        // User hanya bisa lihat pinjaman sendiri
-        if (Auth::user()->role === 'user' && $loan->user_id !== Auth::id()) {
-            return response()->json(['message' => 'Unauthorized. Anda hanya bisa melihat pinjaman sendiri.'], 403);
+        // ✅ Fix: role adalah 'customer' bukan 'user'
+        if (Auth::user()->role === 'customer' && $loan->user_id !== Auth::id()) {
+            return response()->json([
+                'message' => 'Unauthorized. Anda hanya bisa melihat pinjaman sendiri.'
+            ], 403);
         }
 
-        return response()->json($loan);
+        return response()->json(['data' => $loan]);
     }
 
     // USER: Ajukan pinjaman baru
     public function store(Request $request)
     {
         $request->validate([
-            'nominal' => 'required|numeric|min:100000|max:100000000',
+            'nominal' => 'required|string|max:16', // ✅ Accept string karena dari frontend
             'rentang' => 'required|in:3 Bulan,6 Bulan,12 Bulan'
         ]);
 
@@ -57,7 +61,7 @@ class PeminjamanController extends Controller
         $existingPending = Peminjaman::where('user_id', Auth::id())
             ->where('status', 'pending')
             ->exists();
-            
+        
         if ($existingPending) {
             return response()->json([
                 'message' => 'Anda masih memiliki pinjaman yang sedang diproses. Tunggu hingga selesai.'
@@ -68,6 +72,7 @@ class PeminjamanController extends Controller
             'user_id' => Auth::id(),
             'nominal' => $request->nominal,
             'rentang' => $request->rentang,
+            'Waktu' => now(), // ✅ Add Waktu field
             'status' => 'pending'
         ]);
 
@@ -80,8 +85,8 @@ class PeminjamanController extends Controller
     // ADMIN: Approve pinjaman
     public function approve($id)
     {
-        // Double check - hanya admin yang bisa
-        if (Auth::user()->role !== 'admin') {
+        // ✅ Check role admin OR owner
+        if (!in_array(Auth::user()->role, ['admin', 'owner'])) {
             return response()->json([
                 'message' => 'Unauthorized. Hanya admin yang bisa approve pinjaman.'
             ], 403);
@@ -110,8 +115,8 @@ class PeminjamanController extends Controller
     // ADMIN: Tolak pinjaman
     public function reject($id)
     {
-        // Double check - hanya admin yang bisa
-        if (Auth::user()->role !== 'admin') {
+        // ✅ Check role admin OR owner
+        if (!in_array(Auth::user()->role, ['admin', 'owner'])) {
             return response()->json([
                 'message' => 'Unauthorized. Hanya admin yang bisa menolak pinjaman.'
             ], 403);
@@ -140,8 +145,8 @@ class PeminjamanController extends Controller
     // ADMIN: Update status pinjaman
     public function updateStatus(Request $request, $id)
     {
-        // Double check - hanya admin yang bisa
-        if (Auth::user()->role !== 'admin') {
+        // ✅ Check role admin OR owner
+        if (!in_array(Auth::user()->role, ['admin', 'owner'])) {
             return response()->json([
                 'message' => 'Unauthorized. Hanya admin yang bisa update status pinjaman.'
             ], 403);

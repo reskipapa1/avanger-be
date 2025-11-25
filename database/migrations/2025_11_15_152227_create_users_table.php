@@ -6,51 +6,37 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-
-            // Identitas dasar
             $table->string('name');
             $table->string('username')->unique();
             $table->string('email')->unique();
-            $table->string('password');
-
-            // Data untuk sistem pinjol
-            $table->string('no_hp', 12)->unique();
-            $table->string('no_hp2', 12)->unique();
-            $table->string('nama_no_hp2');
-            $table->string('relasi_no_hp2');
-            $table->string('NIK', 16)->unique();
-            $table->string('Norek', 20)->unique();
-            $table->string('Nama_Ibu');
-            $table->string('Pekerjaan');
-            $table->string('Gaji', 16);
-            $table->string('alamat');
-
-            // Relasi bank
-            $table->string('kode_bank', 10);
-
-            // Role
-            $table->enum('role', ['admin','owner','customer'])->default('customer');
-
-            // Security
             $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->enum('role', ['customer', 'admin', 'owner'])->default('customer');
+            
+            // ✅ Customer-specific fields (nullable for admin/owner)
+            $table->string('no_hp', 12)->nullable();
+            $table->string('no_hp2', 12)->nullable();
+            $table->string('nama_no_hp2')->nullable();
+            $table->string('relasi_no_hp2')->nullable();
+            $table->string('NIK', 16)->nullable();
+            $table->string('Norek', 20)->nullable();
+            $table->string('Nama_Ibu')->nullable();
+            $table->string('Pekerjaan')->nullable();
+            $table->string('Gaji', 16)->nullable();
+            $table->text('alamat')->nullable();
+            $table->string('kode_bank', 10)->nullable();
+            
+            $table->foreign('kode_bank')->references('kode_bank')->on('banks')->onDelete('set null');
             $table->rememberToken();
-
             $table->timestamps();
-
-            // Foreign Key
-          $table->foreign('kode_bank')
-    ->references('kode_bank')
-    ->on('banks')
-    ->onDelete('restrict');
-
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('users');
     }

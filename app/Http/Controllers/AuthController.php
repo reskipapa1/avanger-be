@@ -3,101 +3,108 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // REGISTER
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
-            'username' => 'required|unique:users',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
+        // ✅ Base validation (untuk semua role)
+        $rules = [
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+        ];
 
-            'no_hp' => 'required|unique:users',
-            'no_hp2' => 'required|unique:users',
-            'nama_no_hp2' => 'required',
-            'relasi_no_hp2' => 'required',
-            'NIK' => 'required|unique:users',
-            'Norek' => 'required|unique:users',
-            'Nama_Ibu' => 'required',
-            'Pekerjaan' => 'required',
-            'Gaji' => 'required',
-            'alamat' => 'required',
+        // ✅ Additional validation ONLY for customer role
+        if (!$request->has('role') || $request->role === 'customer') {
+            $rules = array_merge($rules, [
+                'no_hp' => 'required|string|max:12|unique:users',
+                'no_hp2' => 'required|string|max:12|unique:users',
+                'nama_no_hp2' => 'required|string|max:255',
+                'relasi_no_hp2' => 'required|string|max:255',
+                'NIK' => 'required|string|size:16|unique:users',
+                'Norek' => 'required|string|max:20|unique:users',
+                'Nama_Ibu' => 'required|string|max:255',
+                'Pekerjaan' => 'required|string|max:255',
+                'Gaji' => 'required|string|max:16',
+                'alamat' => 'required|string',
+                'kode_bank' => 'required|string|exists:banks,kode_bank',
+            ]);
+        }
 
-            'kode_bank' => 'required|exists:bank,kode_bank',
-        ]);
+        $validated = $request->validate($rules);
+        $validated['password'] = Hash::make($validated['password']);
+        $validated['role'] = $validated['role'] ?? 'customer';
 
-        $user = User::create([
-            'name' => $request->name,
-            'username' => $request->username,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+        $user = User::create($validated);
 
-            'no_hp' => $request->no_hp,
-            'no_hp2' => $request->no_hp2,
-            'nama_no_hp2' => $request->nama_no_hp2,
-            'relasi_no_hp2' => $request->relasi_no_hp2,
-            'NIK' => $request->NIK,
-            'Norek' => $request->Norek,
-            'Nama_Ibu' => $request->Nama_Ibu,
-            'Pekerjaan' => $request->Pekerjaan,
-            'Gaji' => $request->Gaji,
-            'alamat' => $request->alamat,
-            'kode_bank' => $request->kode_bank,
-        ]);
-
-        $token = $user->createToken('authToken', ['user:read', 'user:write'])->plainTextToken;
+        // ✅ Create token with abilities based on role
+        $abilities = $this->getAbilitiesByRole($user->role);
+        $token = $user->createToken('auth-token', $abilities)->plainTextToken;
 
         return response()->json([
-            'message' => 'Register berhasil',
-            'token' => $token,
             'user' => $user,
+            'token' => $token,
+            'message' => 'Registration successful'
         ], 201);
     }
 
-    // LOGIN
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required',
-            'password' => 'required'
+            'email' => 'required|email',
+            'password' => 'required',
         ]);
 
         $user = User::where('email', $request->email)->first();
 
-        sleep(1); // anti brute force
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Email atau password salah'], 401);
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
         }
 
-        // Cek Role untuk menentukan kekuatan Token
-        if ($user->role == 'admin') {
-            // Admin punya kekuatan penuh: create, update, delete
-            $abilities = ['bank:create', 'bank:update', 'bank:delete', 'bank:read'];
-        } else {
-            // Customer cuma bisa baca (read)
-            $abilities = ['bank:read'];
-        }
-
-        // Buat token dengan abilities tersebut
-        $token = $user->createToken('authToken', $abilities)->plainTextToken;
+        // ✅ Create token with abilities based on role
+        $abilities = $this->getAbilitiesByRole($user->role);
+        $token = $user->createToken('auth-token', $abilities)->plainTextToken;
 
         return response()->json([
-            'message' => 'Login berhasil',
+            'user' => $user,
             'token' => $token,
-            'user' => $user
+            'message' => 'Login successful'
         ]);
     }
 
-    // LOGOUT
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json(['message' => 'Logout berhasil']);
+        return response()->json([
+            'message' => 'Logged out successfully'
+        ]);
+    }
+
+    private function getAbilitiesByRole($role)
+    {
+        switch ($role) {
+            case 'owner':
+                return ['*']; // All permissions
+            case 'admin':
+                return [
+                    'peminjaman:read',
+                    'peminjaman:approve',
+                    'peminjaman:update',
+                ];
+            case 'customer':
+            default:
+                return [
+                    'peminjaman:read',
+                    'peminjaman:create',
+                ];
+        }
     }
 }

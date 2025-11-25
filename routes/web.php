@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Route;
 | contains the "web" middleware group. Now create something great!
 |
 */
+// routes/web.php
+Route::get('/login', function () {
+    return response()->json(['message' => 'Please use API login']);
+})->name('login');
 
 Route::get('/', function () {
     return view('welcome');
