@@ -2,14 +2,14 @@
 
 return [
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*'],
 
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
         'https://pinjaman-online-bay.vercel.app',
         // tambahkan origin lain kalau perlu, misal dev:
-        // 'http://localhost:3000',
+        'http://localhost:3000',
     ],
 
     'allowed_origins_patterns' => [],
@@ -20,6 +20,6 @@ return [
 
     'max_age' => 0,
 
-    // true kalau pakai cookie / credentials (Sanctum).
-    'supports_credentials' => true,
+    // false karena pakai personal access token (Bearer).
+    'supports_credentials' => false,
 ];
